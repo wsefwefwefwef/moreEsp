@@ -1,0 +1,111 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Function to create a BillboardGui for inventory display
+local function createBillboardGui(character)
+    if character and not character:FindFirstChild("InventoryDisplay") then
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Name = "InventoryDisplay"
+        billboardGui.Adornee = character:FindFirstChild("Head")
+        billboardGui.Size = UDim2.new(0, 80, 0, 25)  -- Smaller size for inventory display
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+        billboardGui.AlwaysOnTop = true
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 0.5
+        textLabel.BackgroundColor3 = Color3.new(0, 0, 0)  -- Black background
+        textLabel.TextColor3 = Color3.new(1, 1, 1)        -- White text
+        textLabel.TextStrokeTransparency = 0
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.Text = ""
+        textLabel.Parent = billboardGui
+
+        billboardGui.Parent = character
+    end
+end
+
+-- Function to get the inventory items of a player, including held items
+local function getInventory(player)
+    local inventoryItems = {}
+    
+    -- Get items in the backpack
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    if backpack then
+        for _, item in pairs(backpack:GetChildren()) do
+            table.insert(inventoryItems, item.Name)
+        end
+    end
+    
+    -- Get items currently held by the player
+    local character = player.Character
+    if character then
+        for _, item in pairs(character:GetChildren()) do
+            if item:IsA("Tool") then
+                table.insert(inventoryItems, item.Name)
+            end
+        end
+    end
+
+    if #inventoryItems == 0 then
+        return "No items"
+    else
+        return table.concat(inventoryItems, ", ")
+    end
+end
+
+-- Function to display the inventory above the player's head
+local function displayInventory(player, inventory)
+    local character = player.Character
+    local billboardGui = character:FindFirstChild("InventoryDisplay")
+    if billboardGui then
+        local textLabel = billboardGui:FindFirstChildOfClass("TextLabel")
+        if inventory then
+            textLabel.Text = inventory
+        else
+            textLabel.Text = "No items"
+        end
+    end
+end
+
+-- Function to set up the inventory display for a player
+local function setupPlayerInventoryDisplay(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Create BillboardGui when character spawns
+        createBillboardGui(character)
+        character:WaitForChild("Humanoid").Died:Connect(function()
+            -- Recreate BillboardGui after death
+            createBillboardGui(character)
+        end)
+    end)
+
+    -- Create BillboardGui for the player's current character
+    if player.Character then
+        createBillboardGui(player.Character)
+        player.Character:WaitForChild("Humanoid").Died:Connect(function()
+            -- Recreate BillboardGui after death
+            createBillboardGui(player.Character)
+        end)
+    end
+end
+
+-- Connect to player events
+Players.PlayerAdded:Connect(function(player)
+    setupPlayerInventoryDisplay(player)
+end)
+
+-- Initialize inventory display for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    setupPlayerInventoryDisplay(player)
+end
+
+-- Update the inventory display continuously
+RunService.RenderStepped:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local inventory = getInventory(player)
+            displayInventory(player, inventory)
+        end
+    end
+end)
